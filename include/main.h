@@ -35,12 +35,12 @@
 #define PROS_USE_LITERALS
 
 #include "api.h"
-void movement(std::string direction, int time);
+#include "pros/apix.h"
 
 /**
  * You should add more #includes here
  */
- #include "okapi/api.hpp"
+ //#include "okapi/api.hpp"
 //#include "pros/api_legacy.h"
 
 /**
@@ -52,7 +52,7 @@ void movement(std::string direction, int time);
  * namespace.
  */
 using namespace pros;
-using namespace okapi;
+//using namespace okapi;
 
 // using namespace pros::literals;
 /*

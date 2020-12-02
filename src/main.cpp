@@ -1,133 +1,219 @@
 #include "main.h"
-#include "X/control/robot.h"
+#include "X/robot.h"
+#include "X/auton.h"
 #include <iostream>
-#include <ctime>
 using namespace std;
 using namespace pros;
 
-class Chassis{
-public:
-  void movement(int x_direction, int y_direction, int turn, bool conveyorOn){
-		int LF = -x_direction - y_direction - turn;
-		int RF = x_direction - y_direction + turn;
-		int LB = x_direction - y_direction - turn;
-		int RB = -x_direction - y_direction + turn;
-		LeftFrontMotor.move(LF);
-		RightFrontMotor.move(RF);
-		LeftBackMotor.move(LB);
-		RightBackMotor.move(RB);
-		if(conveyorOn){
-			IntakeRight.move(127);
-		 IntakeLeft.move(-127);
-		 ConveyorRight.move(127);
-     ConveyorLeft.move(-127);
-	 }
-		else {
-			IntakeRight.move(0);
-		 IntakeLeft.move(0);
-		 ConveyorRight.move(0);
-     ConveyorLeft.move(0);
-		}
+/////////////////////////VARIABLES/////////////////////////////
 
+extern int selectedAuton;
+string currentMode;
 
-  }
-};
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
+bool fieldCentric = false;
+
+double powerToRPMFactor = 100/127;
+double degreeToRadianFactor = 3.1459/180;
+
+vision_object_s_t ballInConveyor;
+vision_signature_s_t redBallSignature = VisionSensor.signature_from_utility(1, 3733, 5807, 4770, 787, 2633, 1710, 4.700, 0);
+vision_signature_s_t blueBallSignature = VisionSensor.signature_from_utility(2, -3855, -3035, -3445, 11431, 14689, 13060, 3.000, 0);
+
+/////////////////////////FUNCTIONS/////////////////////////////
+
 void initialize() {
 
-}
+  VisionSensor.clear_led();
+  VisionSensor.set_exposure(150);
+  VisionSensor.set_zero_point(E_VISION_ZERO_CENTER);
+  ImuM.reset();
+  pros::lcd::initialize();
+  pros::lcd::set_text(1, "5327U");
+  pros::lcd::register_btn0_cb(button0);
+  pros::lcd::register_btn1_cb(button1);
+  pros::lcd::register_btn2_cb(button2);
+  currentMode = "Initialization";
+};
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
-void disabled() {}
+void disabled() {
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
-void competition_initialize() {}
+};
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontr	ol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
+void competition_initialize() {
+
+};
+
 void autonomous() {
+  currentMode = "Autonomous Period";
+  master.rumble(".");
+  if (selectedAuton == 1) {
+    oneGoalAuton();
+  }
+  else if (selectedAuton == 2) {
+    twoGoalAuton();
+  }
+  else if (selectedAuton == 3) {
+		ImuM.reset();
+		delay(2000);
+    progSkills();
+  }
+  else {
+    flipOutAuton();
+  }
+};
 
-}
-
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 void opcontrol() {
 
-
+  currentMode = "Driver Control";
 
 	while (true) {
 
+    updateBrainText();
 
-		int LF = master.get_analog(ANALOG_LEFT_X) - master.get_analog(ANALOG_LEFT_Y) + master.get_analog(ANALOG_RIGHT_X);
-		int RF = -master.get_analog(ANALOG_LEFT_X) - master.get_analog(ANALOG_LEFT_Y) - master.get_analog(ANALOG_RIGHT_X);
-		int LB = master.get_analog(ANALOG_LEFT_X) - master.get_analog(ANALOG_LEFT_Y) - master.get_analog(ANALOG_RIGHT_X);
-		int RB = -master.get_analog(ANALOG_LEFT_X) - master.get_analog(ANALOG_LEFT_Y) + master.get_analog(ANALOG_RIGHT_X);
+		/////////////////////////DRIVE TRAIN CALCULATIONS/////////////////////////////
 
-				if (master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
-				    IntakeRight.move(127);
-					 IntakeLeft.move(-127);
-					 ConveyorRight.move(-127);
-           ConveyorLeft.move(127);
+    double analogLeftX = master.get_analog(ANALOG_LEFT_X);
+    double analogLeftY = master.get_analog(ANALOG_LEFT_Y);
+    double analogRightX = master.get_analog(ANALOG_RIGHT_X) * 0.9;
+
+    double heading = ImuM.get_heading() * (degreeToRadianFactor);
+
+    double finalX = (analogLeftX * cos(heading)) + (analogLeftY * sin(heading));
+    double finalY = (analogLeftX * sin(heading)) + (analogLeftY * cos(heading));
+
+		if (fieldCentric == true) {
+	    analogLeftX = finalX;
+	    analogLeftY = finalY;
+		}
+		else {
+			analogLeftX = master.get_analog(ANALOG_LEFT_X);
+			analogLeftY = master.get_analog(ANALOG_LEFT_Y);
+		}
+
+		int LF = analogLeftX - analogLeftY + analogRightX;
+		int RF = -analogLeftX - analogLeftY - analogRightX;
+		int LB = analogLeftX - analogLeftY - analogRightX;
+		int RB = -analogLeftX - analogLeftY + analogRightX;
+
+		/////////////////////////BUTTONS AND MACROS/////////////////////////////
+
+		if (master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
+		    IntakeRight.move_voltage(12000);
+		    IntakeLeft.move_voltage(-12000);
+
 				}
 
 
         else if (master.get_digital(E_CONTROLLER_DIGITAL_R2)) {
-						IntakeRight.move(-127);
-					 IntakeLeft.move(127);
-					 ConveyorRight.move(127);
-           ConveyorLeft.move(-127);
+            IntakeRight.move_voltage(-12000);
+            IntakeLeft.move_voltage(12000);
+
         }
 
         else {
-					IntakeRight.move(0);
-				 IntakeLeft.move(0);
-				 ConveyorRight.move(0);
-         ConveyorLeft.move(0);
+
+            IntakeRight.move_voltage(0);
+            IntakeLeft.move_voltage(0);
         }
+        if (master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
+
+            ConveyorRight.move_voltage(-12000);
+            ConveyorLeft.move_voltage(12000);
+        }
+
+
+        else if (master.get_digital(E_CONTROLLER_DIGITAL_L2)) {
+
+            ConveyorRight.move_voltage(12000);
+            ConveyorLeft.move_voltage(-12000);
+        }
+
+        else if (master.get_digital(E_CONTROLLER_DIGITAL_X)) {
+
+            ConveyorRight.move(-100);
+            ConveyorLeft.move(100);
+        }
+
+        else if (master.get_digital(E_CONTROLLER_DIGITAL_A)) {
+
+            ConveyorRight.move_voltage(-12000);
+            ConveyorLeft.move_voltage(12000);
+            IntakeRight.move_voltage(12000);
+    		    IntakeLeft.move_voltage(-12000);
+        }
+
+        else if (master.get_digital(E_CONTROLLER_DIGITAL_B)) {
+
+            ConveyorRight.move_voltage(12000);
+            ConveyorLeft.move_voltage(-12000);
+            IntakeRight.move_voltage(-12000);
+    		    IntakeLeft.move_voltage(12000);
+        }
+
+        else {
+
+            ConveyorRight.move_voltage(0);
+            ConveyorLeft.move_voltage(0);
+        }
+			if (master.get_digital(E_CONTROLLER_DIGITAL_Y)){
+				if (fieldCentric == true) {
+					fieldCentric = false;
+				}
+			}
+      if (master.get_digital(E_CONTROLLER_DIGITAL_UP)) {
+        LF = -127;
+        RF = -127;
+        LB = -127;
+        RB = -127;
+      }
+      else if (master.get_digital(E_CONTROLLER_DIGITAL_LEFT)) {
+        LF = -127;
+        RF = 127;
+        LB = -127;
+        RB = 127;
+      }
+      else if (master.get_digital(E_CONTROLLER_DIGITAL_RIGHT)) {
+        LF = 127;
+        RF = -127;
+        LB = 127;
+        RB = -127;
+      }
+      else if (master.get_digital(E_CONTROLLER_DIGITAL_DOWN)) {
+        LF = 127;
+        RF = 127;
+        LB = 127;
+        RB = 127;
+      }
+
+		/////////////////////////MOTOR MOVEMENTS/////////////////////////////
 
 		LeftFrontMotor.move(LF);
 		RightFrontMotor.move(RF);
 		LeftBackMotor.move(-LB);
 		RightBackMotor.move(-RB);
 
-		pros::delay(2);
+    /////////////////////////NOTIFICATIONS/////////////////////////////
+
+    vision_object_s_t redBall = VisionSensor.get_by_sig(0, 1);
+    vision_object_s_t blueBall = VisionSensor.get_by_sig(0, 2);
+
+    int redBallArea = redBall.height * redBall.width;
+    int blueBallArea = blueBall.height * blueBall.width;
+    if (redBallArea > blueBallArea){
+        VisionSensor.set_led(COLOR_RED);
+    }
+    else if (redBallArea < blueBallArea) {
+        VisionSensor.set_led(COLOR_BLUE);
+    }
+    else {
+      VisionSensor.set_led(COLOR_WHITE);
+    };
+
+    if ((redBallArea >= 1 || blueBallArea >= 1) && IntakeRight.get_target_velocity() > 10) {
+      master.rumble(".");
+    };
+
+    pros::delay(10);
 
 	}
-}
+};
