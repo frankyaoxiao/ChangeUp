@@ -1,7 +1,7 @@
 #include "main.h"
 #include "X/robot.h"
 #include "X/auton.h"
-#include <iostream>
+
 using namespace std;
 using namespace pros;
 
@@ -86,24 +86,26 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
           IsRunning = true;
           double errorX = posX - currentX;
           double WantedAngleRad = atan((posY - currentY) / (posX - currentX));
-          double WantedAngle = WantedAngleRad * 180 / 3.14159;
+          double WantedAngle = WantedAngleRad * (180 / 3.14159);
           double errorTheta = WantedAngle - theta;
           IntakeRight.move(intake);
           IntakeLeft.move(-intake);
           ConveyorRight.move(-conveyor);
           ConveyorLeft.move(conveyor);
+          //pros::lcd::set_text(4, to_string(errorX));
 
 
           while (errorTheta > .5) {
               Track();
+              //pros::lcd::set_text(5,  to_string(theta) + ", " + to_string(errorX));
               if (theta - WantedAngle >= 180) {
-                  baseMovement(0, 0, -100);
+                  baseMovement(0, 0, -50);
                   errorTheta = WantedAngle - theta;
                   pros::delay(10);
               }
               else {
 
-                  baseMovement(0, 0, -100);
+                  baseMovement(0, 0, 50);
                   errorTheta = WantedAngle - theta;
                   pros::delay(10);
               }
@@ -112,8 +114,8 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
           baseMovement(0, 0, 0);
           while (errorX > .5) {
               Track();
-
-              baseMovement(100, 0, 0);
+              //pros::lcd::set_text(6, "Moving to Point" + to_string(errorX));
+              baseMovement(0, 100, 0);
               errorX = posX - currentX;
               pros::delay(10);
               }
@@ -125,28 +127,17 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
           ConveyorRight.move(0);
           ConveyorLeft.move(0);
           Track();
+          //pros::lcd::set_text(7, "Reached Point" + to_string(errorTheta) + ", " + to_string(errorX));
       }
   };
 
+Odom Chassis;
 
 void oneGoalAuton(){
-  timeBasedMovement(0, 0, 0, -1, 0);
-  delay(100);
-  timeBasedMovement(0, 0, 0, 1, 0);
-  delay(1500);
-  timeBasedMovement(0, 0, 0, -1, 0);
-  delay(150);
-  timeBasedMovement(0, 0, 0, 1, 0);
-  delay(1500);
-  timeBasedMovement(0, 0, 0, -1, 0);
-  delay(150);
-  timeBasedMovement(0, 0, 0, 1, 0);
-  delay(1500);
-  timeBasedMovement(0, 0, -100, 0, 0);
-  delay(500);
-  timeBasedMovement(0, -127, 0, 0, 1);
-  delay(1500);
-  timeBasedMovement(0, 0, 0, 0, 0);
+  Chassis.MoveTo(1, 0,100,0);
+  delay(50);
+  //Chassis.MoveTo(5,3,0,0);
+
 };
 
 void twoGoalAuton(){
@@ -183,10 +174,12 @@ void twoGoalAuton(){
 
 void progSkills() {
 
+
 };
 
 void flipOutAuton() {
   timeBasedMovement(0,0,0,-1,1);
   delay(500);
   timeBasedMovement(0,0,0,0,0);
+
 };

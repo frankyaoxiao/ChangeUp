@@ -23,4 +23,6 @@ void updateBrainText(){
       pros::lcd::set_text(2, "Selected Autonomous: Programming Skills");
   };
   pros::lcd::set_text(3, "Heading: " + to_string(ImuM.get_heading()) + " degrees");
+  double encoderAverage = (LEncoder.get_value() + REncoder.get_value())/2;
+  pros::lcd::set_text(4, "X Encoder Ticks: " + to_string(encoderAverage) + " ticks");
 };

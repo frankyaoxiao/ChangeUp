@@ -26,7 +26,6 @@ void initialize() {
   VisionSensor.clear_led();
   VisionSensor.set_exposure(150);
   VisionSensor.set_zero_point(E_VISION_ZERO_CENTER);
-  ImuM.reset();
   pros::lcd::initialize();
   pros::lcd::set_text(1, "5327U");
   pros::lcd::register_btn0_cb(button0);
@@ -46,6 +45,11 @@ void competition_initialize() {
 void autonomous() {
   currentMode = "Autonomous Period";
   master.rumble(".");
+  ImuM.reset();
+  delay(500);
+  while (ImuM.is_calibrating() == true) {
+    delay(10);
+  };
   if (selectedAuton == 1) {
     oneGoalAuton();
   }
@@ -53,8 +57,6 @@ void autonomous() {
     twoGoalAuton();
   }
   else if (selectedAuton == 3) {
-		ImuM.reset();
-		delay(2000);
     progSkills();
   }
   else {
