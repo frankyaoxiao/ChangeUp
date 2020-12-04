@@ -85,14 +85,16 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
           Track();
           IsRunning = true;
           double errorX = posX - currentX;
-          double WantedAngleRad = atan((posY - currentY) / (posX - currentX));
+          double WantedAngleRad = atan( (posX - currentX) / ((posY - currentY)+ .00000001));
           double WantedAngle = WantedAngleRad * (180 / 3.14159);
           double errorTheta = WantedAngle - theta;
+          double speed = 127;
+          double prevError = 0;
           IntakeRight.move(intake);
           IntakeLeft.move(-intake);
           ConveyorRight.move(-conveyor);
           ConveyorLeft.move(conveyor);
-          //pros::lcd::set_text(4, to_string(errorX));
+          pros::lcd::set_text(7, to_string(errorX) + "    " +  to_string(WantedAngle));
 
 
           while (errorTheta > .5) {
@@ -102,22 +104,29 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
                   baseMovement(0, 0, -50);
                   errorTheta = WantedAngle - theta;
                   pros::delay(10);
+                  Track();
               }
               else {
 
                   baseMovement(0, 0, 50);
                   errorTheta = WantedAngle - theta;
                   pros::delay(10);
+                  Track();
               }
 
           }
           baseMovement(0, 0, 0);
+          Track();
           while (errorX > .5) {
-              Track();
+
               //pros::lcd::set_text(6, "Moving to Point" + to_string(errorX));
-              baseMovement(0, 100, 0);
+
+              baseMovement(0, speed, 0);
               errorX = posX - currentX;
               pros::delay(10);
+              Track();
+              speed = errorX + (currentX - prevError);
+              prevError = errorX;
               }
 
 
@@ -134,9 +143,9 @@ void timeBasedMovement(int x_direction, int y_direction, int turn, int conveyorD
 Odom Chassis;
 
 void oneGoalAuton(){
-  Chassis.MoveTo(1, 0,100,0);
+  Chassis.MoveTo(0, 300,100,0);
   delay(50);
-  //Chassis.MoveTo(5,3,0,0);
+  Chassis.MoveTo(0,0,0,0);
 
 };
 
